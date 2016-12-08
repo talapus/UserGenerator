@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+
+import random
+import sys
+import json
+import requests
+from faker import Faker
+fake = Faker()
+
+
+def debug_color(string):
+    return('\033[31m' + string + '\033[0m')
+
+
+def generate_regcode():
+    return(fake.word() + str(fake.pyint()) + fake.word())
+
+
+def generate_name(type):
+    def generate_word():
+        guess = random.randint(1, 3)
+        if guess == 1:
+            return(fake.word().title())
+        elif guess == 2:
+            return(fake.first_name())
+        else:
+            return(fake.last_name())
+
+    if type == 'first':
+        return(generate_word())
+    else:
+        coin_toss = random.randint(1, 2)
+        if coin_toss == 1:
+            return(generate_word().title())
+        else:
+            return(generate_word().title() + "-" + generate_word().title())
+
+    word = ''
+    return(word)
+
+
+def generateInvitation(oid, token):
+    regcode = generate_regcode()
+    url = 'https://api.qa.crowdcompass.com/v3/events/{}/invitations'.format(oid)
+
+    header = {}
+    header['Access-Token'] = token
+    header['content-type'] = 'application/json'
+
+    data = {}
+    data['invitations'] = [{}]
+    invitation = data['invitations'][0]
+    invitation['linkedin_url'] = "https://linkedin.com/pub/crowdcompass"
+    invitation['facebook_url'] = "https://facebook.com/crowdcompass"
+    invitation['twitter_url'] = "https://twitter.com/crowdcompass"
+    invitation['email'] = 'ccbughunt+' + regcode + '@gmail.com'
+    invitation['first_name'] = generate_name('first')
+    invitation['last_name'] = generate_name('last')
+    invitation['suffix'] = fake.suffix()
+    invitation['job_title'] = fake.job()
+    invitation['organization_name'] = fake.company()
+    invitation['address_street_1'] = fake.street_address()
+    invitation['address_city'] = fake.city()
+    invitation['address_state'] = fake.state()
+    invitation['address_country'] = 'US'
+    invitation['phone_work'] = fake.phone_number()
+    invitation['phone_mobile'] = fake.phone_number()
+    invitation['website'] = fake.url()
+    invitation['visible_on_attendee_list'] = fake.pybool()
+    invitation['registration_code'] = regcode
+
+    s = requests.Session()
+    try:
+        resp = s.post(url, headers=header, data=json.dumps(data))
+        resp.raise_for_status()
+    except:
+        print(debug_color(('RESPONSE was {} {}'.format(resp, resp.text))))
+
+    print('{} {}, {}'.format(invitation['first_name'],
+        invitation['last_name'], regcode))
+
+
+def displayUsage():
+    # print('Version 1.0.1110082015')
+    print('Usage: $ UserGenerator # OID Token\n')
+
+
+def main():
+    try:
+        numAttendees = int(sys.argv[1])
+        oid = sys.argv[2]
+        token = sys.argv[3]
+        for i in range(numAttendees):
+            print('{}/{}({:.0%}) '.format(i+1, numAttendees, i / numAttendees), end="", flush=True)
+            generateInvitation(oid, token)
+        print('\n{} attendee records created for event {}\n\
+                '.format(numAttendees, oid))
+    except:
+        displayUsage()
+
+
+if __name__ == '__main__':
+    main()
